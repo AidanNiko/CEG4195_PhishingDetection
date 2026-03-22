@@ -1,0 +1,28 @@
+For Phishing Body Text:
+https://github.com/rokibulroni/Phishing-Email-Dataset?utm_source=chatgpt.com
+
+https://www.kaggle.com/datasets/naserabdullahalam/phishing-email-dataset/data
+
+SuccessfulCrab/enron
+
+https://zenodo.org/records/8339691?utm_source=chatgpt.com
+
+MetaData like Headers:
+https://www.phishtank.com/?utm_source=chatgpt.com
+
+https://archive-beta.ics.uci.edu/dataset/327/phishing%2Bwebsites?utm_source=chatgpt.com
+
+
+
+Literature Review
+
+"Learning to Detect Phishing Emails" Fette 2007
+"A Plan for Spam" Paul Graham 2002 — short, readable, foundational Bayesian spam paper
+"BERT: Pre-training of Deep Bidirectional Transformers" Devlin 2019
+"Spam Filtering with Naive Bayes" Metsis 2006
+"Email Spam Detection: A Machine Learning Approach" — search this phrase for recent survey papers
+
+
+
+Issues
+Anything related to payments context are mostly considered as phishing

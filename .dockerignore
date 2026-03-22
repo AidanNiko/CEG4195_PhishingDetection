@@ -1,0 +1,26 @@
+# Large data directories — injected via docker-compose volume mounts instead
+Docs/
+Datasets/
+mlruns/
+
+# Python cache
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Git
+.git/
+.gitignore
+
+# Editor / OS
+.vscode/
+*.log
+.DS_Store
+Thumbs.db
+
+# Virtual environments
+venv/
+.venv/
+env/

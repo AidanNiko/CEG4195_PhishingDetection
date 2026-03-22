@@ -1,0 +1,31 @@
+services:
+  api:
+    build: .
+    container_name: phishing_api
+    ports:
+      - "8001:8001"
+    volumes:
+      # Trained model files – updated whenever you re-run the pipeline
+      - ./Docs:/app/Docs
+      # Raw datasets (only needed if you want to retrain inside the container)
+      - ./Datasets:/app/Datasets
+      # MLflow experiment tracking – persists inference logs outside the container
+      - ./mlruns:/app/mlruns
+    environment:
+      - SENTENCE_TRANSFORMERS_HOME=/app/.cache/sentence_transformers
+      - MLFLOW_TRACKING_URI=mlruns
+    restart: unless-stopped
+
+  mlflow:
+    image: python:3.12-slim
+    container_name: phishing_mlflow
+    working_dir: /mlruns
+    volumes:
+      - ./mlruns:/mlruns
+    ports:
+      - "5000:5000"
+    command: >
+      sh -c "pip install --quiet mlflow &&
+             mlflow ui --host 0.0.0.0 --port 5000 --backend-store-uri /mlruns
+             --allowed-hosts '*'"
+    restart: unless-stopped

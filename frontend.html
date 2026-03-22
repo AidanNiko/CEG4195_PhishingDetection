@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Phishing Email Detector</title>
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0f1117;
+      --surface:      #1a1d27;
+      --surface-2:    #22263a;
+      --border:       #2e3350;
+      --accent:       #6c8fff;
+      --accent-glow:  rgba(108, 143, 255, 0.18);
+      --text:         #e2e8f0;
+      --text-muted:   #8892b0;
+      --legit:        #34d399;
+      --legit-bg:     rgba(52, 211, 153, 0.1);
+      --phishing:     #f87171;
+      --phishing-bg:  rgba(248, 113, 113, 0.1);
+      --uncertain:    #fbbf24;
+      --uncertain-bg: rgba(251, 191, 36, 0.1);
+      --radius:       14px;
+      --radius-sm:    8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2.5rem 1rem 4rem;
+    }
+
+    /* ── Header ───────────────────────────────────────────────────── */
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .logo {
+      font-size: 2.6rem;
+      margin-bottom: 0.4rem;
+    }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(120deg, #a5b4fc, #6c8fff, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 0.4rem;
+    }
+
+    /* ── Main card ────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 720px;
+      padding: 2rem;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+    }
+
+    /* ── Form ─────────────────────────────────────────────────────── */
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+    }
+
+    .field.full { grid-column: 1 / -1; }
+
+    label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+    }
+
+    input, textarea {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 0.95rem;
+      padding: 0.65rem 0.9rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      outline: none;
+      resize: vertical;
+    }
+
+    input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 0.6; }
+
+    input:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    textarea { min-height: 140px; }
+
+    /* ── Button ───────────────────────────────────────────────────── */
+    .btn {
+      width: 100%;
+      margin-top: 1.25rem;
+      padding: 0.85rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: linear-gradient(135deg, #6c8fff, #818cf8);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: opacity 0.2s, transform 0.15s;
+      position: relative;
+    }
+
+    .btn:hover  { opacity: 0.9; transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    /* spinner inside button */
+    .btn .spinner {
+      display: none;
+      width: 18px; height: 18px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin: 0 auto;
+    }
+    .btn.loading .btn-text { display: none; }
+    .btn.loading .spinner { display: block; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Divider ──────────────────────────────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.75rem 0;
+    }
+
+    /* ── Result ───────────────────────────────────────────────────── */
+    #result { display: none; }
+
+    .verdict-banner {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.1rem 1.3rem;
+      border-radius: var(--radius-sm);
+      margin-bottom: 1.5rem;
+      border: 1px solid transparent;
+    }
+
+    .verdict-banner.legit     { background: var(--legit-bg);     border-color: var(--legit);     }
+    .verdict-banner.phishing  { background: var(--phishing-bg);  border-color: var(--phishing);  }
+    .verdict-banner.uncertain { background: var(--uncertain-bg); border-color: var(--uncertain); }
+
+    .verdict-icon { display: none; }
+    .verdict-text h2 { font-size: 1.15rem; font-weight: 700; }
+    .verdict-text .verdict-sub { font-size: 0.85rem; color: var(--text-muted); margin-top: 0.15rem; }
+
+    .legit     .verdict-text h2 { color: var(--legit);     }
+    .phishing  .verdict-text h2 { color: var(--phishing);  }
+    .uncertain .verdict-text h2 { color: var(--uncertain); }
+
+    /* ── Metric grid ──────────────────────────────────────────────── */
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .metric {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 0.9rem 1rem;
+    }
+
+    .metric .m-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+      margin-bottom: 0.3rem;
+    }
+
+    .metric .m-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* ── Probability bar ──────────────────────────────────────────── */
+    .bar-section { margin-bottom: 0.4rem; }
+
+    .bar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .bar-label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      color: var(--text-muted);
+    }
+
+    .bar-pct { font-size: 0.9rem; font-weight: 700; color: var(--text); }
+
+    .bar-track {
+      height: 10px;
+      background: var(--surface-2);
+      border-radius: 99px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+    }
+
+    .bar-fill.low    { background: linear-gradient(90deg, #34d399, #6ee7b7); }
+    .bar-fill.medium { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+    .bar-fill.high   { background: linear-gradient(90deg, #f87171, #ef4444); }
+
+    /* ── Error ────────────────────────────────────────────────────── */
+    #error {
+      display: none;
+      background: rgba(248, 113, 113, 0.1);
+      border: 1px solid var(--phishing);
+      border-radius: var(--radius-sm);
+      color: var(--phishing);
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      margin-top: 1rem;
+    }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
+    footer {
+      margin-top: 2rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+
+    footer span { color: var(--accent); }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
+    @media (max-width: 520px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .metrics   { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>Phishing Email Detector</h1>
+    <p>Paste an email below to analyse it for phishing indicators</p>
+  </header>
+
+  <div class="card">
+
+    <!-- ── Input form ── -->
+    <div class="form-grid">
+      <div class="field">
+        <label for="sender">Sender Address</label>
+        <input id="sender" type="email" placeholder="attacker@suspicious.com" />
+      </div>
+      <div class="field">
+        <label for="receiver">Receiver Address</label>
+        <input id="receiver" type="email" placeholder="you@company.com" />
+      </div>
+      <div class="field full">
+        <label for="body">Email Body</label>
+        <textarea id="body" placeholder="Paste the full email body text here…"></textarea>
+      </div>
+    </div>
+
+    <button class="btn" id="analyseBtn" onclick="analyse()">
+      <span class="btn-text">Analyse Email</span>
+      <div class="spinner"></div>
+    </button>
+
+    <div id="error"></div>
+
+    <!-- ── Result section (hidden until response) ── -->
+    <div id="result">
+      <hr class="divider" />
+
+      <!-- Verdict banner -->
+      <div class="verdict-banner" id="verdictBanner">
+        <div class="verdict-text">
+          <h2 id="verdictLabel"></h2>
+          <div class="verdict-sub" id="verdictSub"></div>
+        </div>
+      </div>
+
+      <!-- Key metrics -->
+      <div class="metrics">
+        <div class="metric">
+          <div class="m-label">Phishing Probability</div>
+          <div class="m-value" id="mPhish"></div>
+        </div>
+        <div class="metric">
+          <div class="m-label">Model Confidence</div>
+          <div class="m-value" id="mConf"></div>
+        </div>
+      </div>
+
+      <!-- Probability bar -->
+      <div class="bar-section">
+        <div class="bar-header">
+          <span class="bar-label">Risk Level</span>
+          <span class="bar-pct" id="barPct"></span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" id="barFill" style="width:0%"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    CEG4195 Project &nbsp;·&nbsp; Model served by <span>FastAPI</span> on localhost:8001
+  </footer>
+
+  <script>
+    const API = 'http://127.0.0.1:8001/predict';
+
+    async function analyse() {
+      const btn    = document.getElementById('analyseBtn');
+      const errBox = document.getElementById('error');
+      const result = document.getElementById('result');
+
+      const body     = document.getElementById('body').value.trim();
+      const sender   = document.getElementById('sender').value.trim();
+      const receiver = document.getElementById('receiver').value.trim();
+
+      // Basic validation
+      errBox.style.display = 'none';
+      result.style.display = 'none';
+
+      if (!body || !sender || !receiver) {
+        showError('Please fill in all three fields before analysing.');
+        return;
+      }
+
+      // Loading state
+      btn.classList.add('loading');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ body, sender, receiver }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({ detail: res.statusText }));
+          throw new Error(err.detail || `Server error ${res.status}`);
+        }
+
+        const data = await res.json();
+        renderResult(data);
+
+      } catch (e) {
+        showError(e.message.includes('Failed to fetch')
+          ? 'Cannot reach the API. Make sure the server is running: uvicorn api:app --reload'
+          : e.message);
+      } finally {
+        btn.classList.remove('loading');
+        btn.disabled = false;
+      }
+    }
+
+    function renderResult(data) {
+      const label = data.label;           // "legitimate" | "phishing" | "uncertain"
+      const phishProb = data.phishing_probability;
+      const conf  = data.confidence;
+
+      // Verdict banner
+      const banner = document.getElementById('verdictBanner');
+      banner.className = 'verdict-banner';
+
+      const subs  = {
+        legitimate: 'This email does not show significant phishing indicators.',
+        phishing:   'This email matches known phishing patterns. Do not click any links.',
+        uncertain:  'The model is not confident enough to make a definitive call.',
+      };
+
+      banner.classList.add(label === 'legitimate' ? 'legit' : label === 'phishing' ? 'phishing' : 'uncertain');
+      document.getElementById('verdictLabel').textContent = label;
+      document.getElementById('verdictSub').textContent   = subs[label]   ?? '';
+
+      // Metrics
+      document.getElementById('mPhish').textContent = pct(phishProb);
+      document.getElementById('mConf').textContent  = pct(conf);
+
+      // Bar
+      const pctVal = Math.round(phishProb * 100);
+      document.getElementById('barPct').textContent = `${pctVal}%`;
+
+      const fill = document.getElementById('barFill');
+      fill.className = 'bar-fill ' + (pctVal < 35 ? 'low' : pctVal < 65 ? 'medium' : 'high');
+      // Trigger animation: reset then set
+      fill.style.width = '0%';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        fill.style.width = `${pctVal}%`;
+      }));
+
+      document.getElementById('result').style.display = 'block';
+    }
+
+    function pct(v) {
+      return typeof v === 'number' ? `${Math.round(v * 100)}%` : '—';
+    }
+
+    function showError(msg) {
+      const errBox = document.getElementById('error');
+      errBox.textContent = msg + "!!!!";
+      errBox.style.display = 'block';
+    }
+
+    // Allow Ctrl+Enter to submit from the textarea
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) analyse();
+    });
+  </script>
+</body>
+</html>
