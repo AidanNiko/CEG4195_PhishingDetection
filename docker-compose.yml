@@ -1,6 +1,6 @@
 services:
   api:
-    build: .
+    image: aniko030/phishing-detector:latest
     container_name: phishing_api
     ports:
       - "8001:8001"
